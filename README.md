@@ -1,59 +1,214 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# PHP_Laravel12_Get_Last_Executed_Query
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+A comprehensive Laravel 12 application demonstrating multiple methods to retrieve the last executed SQL query for debugging and learning purposes.
 
-## About Laravel
+## Features
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+* Demonstrates 5 different query debugging methods
+* Interactive dashboard with practical examples
+* Real-time query logging
+* Clean and well-documented code samples
+* Suitable for learning and debugging use cases
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## Requirements
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+* PHP 8.1 or higher
+* Laravel 12.x
+* MySQL 5.7+ or MariaDB 10.3+
+* Composer
 
-## Learning Laravel
+## Installation
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+### 1. Clone the Repository
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+```bash
+git clone https://github.com/yourusername/laravel-query-debugger.git
+cd laravel-query-debugger
+```
 
-## Laravel Sponsors
+### 2. Install Dependencies
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+```bash
+composer install
+```
 
-### Premium Partners
+### 3. Environment Setup
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+```bash
+cp .env.example .env
+php artisan key:generate
+```
 
-## Contributing
+Configure your database in the `.env` file:
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+```env
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=laravel_debug
+DB_USERNAME=root
+DB_PASSWORD=yourpassword
+```
 
-## Code of Conduct
+### 4. Run Migrations and Seeders
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+```bash
+mysql -u root -p -e "CREATE DATABASE IF NOT EXISTS laravel_debug;"
+php artisan migrate
+php artisan db:seed --class=ProductSeeder
+```
 
-## Security Vulnerabilities
+### 5. Run the Application
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+```bash
+php artisan serve
+```
 
-## License
+Visit: `http://localhost:8000/debug`
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+## Debugging Methods Included
+
+### Method 1: DB::getQueryLog()
+
+Best for debugging specific code blocks.
+
+```php
+DB::enableQueryLog();
+// Execute queries
+$queries = DB::getQueryLog();
+$lastQuery = end($queries);
+```
+
+### Method 2: toSql() on Query Builder
+
+Best for viewing SQL before execution.
+
+```php
+$query = Product::where('price', '>', 100);
+$sql = $query->toSql();
+```
+
+### Method 3: DB::listen()
+
+Best for global query monitoring.
+
+```php
+DB::listen(function ($query) {
+    Log::info($query->sql, $query->bindings);
+});
+```
+
+### Method 4: Middleware-Based Logging
+
+Best for environment-based or production-safe debugging.
+
+```php
+// Queries are logged via custom middleware
+```
+
+### Method 5: Raw SQL Queries
+
+Useful when working with raw SQL.
+
+```php
+DB::enableQueryLog();
+DB::select('SELECT * FROM products WHERE quantity > ?', [20]);
+$queries = DB::getQueryLog();
+```
+
+## Project Structure
+
+```
+laravel-query-debugger/
+├── app/
+│   ├── Http/Controllers/QueryDebugController.php
+│   ├── Http/Middleware/QueryLogMiddleware.php
+│   └── Models/Product.php
+├── resources/views/debug/
+│   ├── dashboard.blade.php
+│   ├── method1.blade.php
+│   ├── method2.blade.php
+│   ├── method3.blade.php
+│   ├── method4.blade.php
+│   └── method5.blade.php
+├── database/
+│   ├── migrations/xxxx_create_products_table.php
+│   └── seeders/ProductSeeder.php
+└── routes/web.php
+```
+
+## Performance Notes
+
+Query logging can affect performance. Follow these guidelines:
+
+* Enable logging only in local or staging environments
+* Disable query logs after use
+* Use middleware with environment checks
+
+## Troubleshooting
+
+### Common Issues
+
+**MassAssignmentException**
+
+* Ensure `$fillable` is defined in the Product model
+
+**Empty Query Log**
+
+* Call `DB::enableQueryLog()` before running queries
+
+**Middleware Not Logging**
+
+* Verify environment conditions inside middleware
+
+### Reset Application
+
+```bash
+php artisan migrate:fresh --seed
+php artisan cache:clear
+php artisan config:clear
+php artisan view:clear
+```
+
+## Advanced Configuration
+
+### Custom Query Log Channel
+
+```php
+'channels' => [
+    'queries' => [
+        'driver' => 'daily',
+        'path' => storage_path('logs/queries.log'),
+        'level' => 'info',
+        'days' => 7,
+    ],
+],
+```
+
+### Environment-Based Logging
+
+```php
+if (app()->environment(['local', 'staging']) || config('app.debug')) {
+    DB::enableQueryLog();
+}
+```
+
+## Learning References
+
+* Laravel Database Query Builder Documentation
+* Laravel Eloquent ORM Documentation
+* Laravel Debugbar Package
+
+
+## Screenshots
+
+<img width="1738" height="956" alt="image" src="https://github.com/user-attachments/assets/d970a7f0-a109-449f-9c78-5a810a4eb344" />
+
+<img width="1779" height="903" alt="image" src="https://github.com/user-attachments/assets/06f1e4b9-7214-41a1-98cd-bccd24f245c5" />
+
+![Uploading image.png…]()
+
+
+
+
+(Add dashboard screenshots here)
