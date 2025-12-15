@@ -199,18 +199,13 @@ if (app()->environment(['local', 'staging']) || config('app.debug')) {
 * Laravel Eloquent ORM Documentation
 * Laravel Debugbar Package
 
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Commit your changes
-4. Push to your branch
-5. Open a pull request
-
-## License
-
-This project is licensed under the MIT License.
 
 ## Screenshots
 
-(Add dashboard screenshots here)
+<img width="1774" height="959" alt="image" src="https://github.com/user-attachments/assets/03135f7e-5b7c-46c7-b8c8-7534ec19ab49" />
+
+<img width="1758" height="887" alt="image" src="https://github.com/user-attachments/assets/b8ac6f41-ff48-4ca1-8317-ee649ed9e039" />
+<img width="1759" height="670" alt="image" src="https://github.com/user-attachments/assets/0c98654a-f604-4af3-beea-c5eed900fdc3" />
+
+
+
