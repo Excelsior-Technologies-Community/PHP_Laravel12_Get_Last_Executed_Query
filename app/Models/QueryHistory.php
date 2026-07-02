@@ -14,6 +14,7 @@ class QueryHistory extends Model
         'sql_query',
         'query_type',
         'execution_time',
+        'performance',
         'connection',
     ];
 }
