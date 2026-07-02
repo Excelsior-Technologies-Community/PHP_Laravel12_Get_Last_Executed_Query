@@ -23,6 +23,9 @@ Route::prefix('debug')->name('debug.')->group(function () {
 
     Route::get('/history',[QueryDebugController::class,'history'])->name('history');
 
+    Route::get('/history/export', [QueryDebugController::class, 'exportCSV'])
+        ->name('history.export');
+
     Route::delete('/history/{history}',[QueryDebugController::class,'destroy'])
         ->name('history.destroy');
 

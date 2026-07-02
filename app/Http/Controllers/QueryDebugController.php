@@ -221,24 +221,40 @@ class QueryDebugController extends Controller
         return $sql;
     }
 
+    private function getPerformanceStatus($time)
+    {
+        if ($time <= 20) {
+            return 'Fast';
+        }
+
+        if ($time <= 80) {
+            return 'Medium';
+        }
+
+        return 'Slow';
+    }
+
     public function saveQueryHistory($method, $queries)
     {
         foreach ($queries as $query) {
 
             $sql = $this->formatRawQuery($query);
-
             $type = strtoupper(strtok(trim($sql), " "));
+            $performance = $this->getPerformanceStatus($query['time']);
 
             QueryHistory::firstOrCreate(
                 [
                     'method' => $method,
                     'sql_query' => $sql,
                 ],
+
                 [
                     'query_type' => $type,
                     'execution_time' => $query['time'],
+                    'performance' => $performance,
                     'connection' => $query['connection'] ?? 'mysql',
                 ]
+
             );
         }
     }
@@ -259,6 +275,12 @@ class QueryDebugController extends Controller
             'updateQueries' => QueryHistory::where('query_type', 'UPDATE')->count(),
 
             'deleteQueries' => QueryHistory::where('query_type', 'DELETE')->count(),
+
+            'fastQueries' => QueryHistory::where('performance', 'Fast')->count(),
+
+            'mediumQueries' => QueryHistory::where('performance', 'Medium')->count(),
+
+            'slowQueries' => QueryHistory::where('performance', 'Slow')->count(),
 
         ]);
     }
@@ -283,6 +305,9 @@ class QueryDebugController extends Controller
             'insertQueries' => QueryHistory::where('query_type', 'INSERT')->count(),
             'updateQueries' => QueryHistory::where('query_type', 'UPDATE')->count(),
             'deleteQueries' => QueryHistory::where('query_type', 'DELETE')->count(),
+            'fastQueries' => QueryHistory::where('performance', 'Fast')->count(),
+            'mediumQueries' => QueryHistory::where('performance', 'Medium')->count(),
+            'slowQueries' => QueryHistory::where('performance', 'Slow')->count(),
         ]);
     }
 
@@ -293,11 +318,56 @@ class QueryDebugController extends Controller
         return back()->with('success', 'Deleted Successfully');
     }
 
+    public function exportCSV()
+    {
+        $fileName = 'query_history.csv';
+
+        $headers = [
+
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => 'attachment; filename=' . $fileName,
+
+        ];
+
+        $callback = function () {
+
+            $file = fopen('php://output', 'w');
+
+            fputcsv($file, [
+                'ID',
+                'Method',
+                'Query',
+                'Type',
+                'Execution Time (ms)',
+                'Performance',
+                'Connection',
+                'Created At'
+            ]);
+
+            foreach (QueryHistory::latest()->get() as $history) {
+
+                fputcsv($file, [
+                    $history->id,
+                    $history->method,
+                    $history->sql_query,
+                    $history->query_type,
+                    $history->execution_time,
+                    $history->performance,
+                    $history->connection,
+                    $history->created_at,
+                ]);
+            }
+
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, $headers);
+    }
+
     public function clear()
     {
         QueryHistory::truncate();
 
         return back()->with('success', 'History Cleared');
     }
-
 }

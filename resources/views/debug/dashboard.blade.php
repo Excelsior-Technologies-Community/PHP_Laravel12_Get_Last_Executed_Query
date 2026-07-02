@@ -30,8 +30,61 @@
 
 <body>
     <div class="container">
-        <h1 class="mb-4">Laravel 12 Query Debugging Methods</h1>
-        <p class="lead">Different ways to get the last executed query</p>
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h1>Laravel 12 Query Debugger</h1>
+                <p class="lead mb-0">
+                    Debug • Analyze • Export SQL Queries
+                </p>
+            </div>
+
+            <div>
+                <a href="{{ route('debug.history') }}"
+                    class="btn btn-dark">
+                    Query History
+                </a>
+            </div>
+        </div>
+
+        <div class="row mb-4">
+
+            <div class="col-md-3">
+                <div class="card text-white bg-primary">
+                    <div class="card-body text-center">
+                        <h2>{{ $totalQueries }}</h2>
+                        <h6 class="mt-2 mb-0">Total Queries</h6>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-3">
+                <div class="card text-white bg-success">
+                    <div class="card-body text-center">
+                        <h2>{{ $fastQueries }}</h2>
+                        <h6 class="mt-2 mb-0">Fast Queries</h6>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-3">
+                <div class="card text-dark bg-warning">
+                    <div class="card-body text-center">
+                        <h2>{{ $mediumQueries }}</h2>
+                        <h6 class="mt-2 mb-0">Medium Queries</h6>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-3">
+                <div class="card text-white bg-danger">
+                    <div class="card-body text-center">
+                        <h2>{{ $slowQueries }}</h2>
+                        <h6 class="mt-2 mb-0">Slow Queries</h6>
+                    </div>
+                </div>
+            </div>
+
+        </div>
 
         <div class="row">
             <div class="col-md-6">
@@ -142,6 +195,65 @@
                 </div>
             </div>
         </div>
+
+        <div class="card mt-4">
+
+            <div class="card-header">
+                <h5>Extra Features</h5>
+            </div>
+
+            <div class="card-body">
+
+                <div class="d-flex gap-2 flex-wrap">
+
+                    <a href="{{ route('debug.history') }}"
+                        class="btn btn-primary">
+                        📜 View Query History
+                    </a>
+
+                    <a href="{{ route('debug.history.export') }}"
+                        class="btn btn-success">
+                        📥 Export CSV
+                    </a>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="alert alert-secondary mt-4">
+
+            <h5>Performance Analyzer</h5>
+
+            <hr>
+
+            <div class="mb-2">
+                <span class="badge bg-success">
+                    Fast
+                </span>
+
+                Queries executed in ≤ 20 ms
+            </div>
+
+            <div class="mb-2">
+                <span class="badge bg-warning text-dark">
+                    Medium
+                </span>
+
+                Queries executed in 21–80 ms
+            </div>
+
+            <div>
+                <span class="badge bg-danger">
+                    Slow
+                </span>
+
+                Queries executed in more than 80 ms
+            </div>
+
+        </div>
+
     </div>
 </body>
 
