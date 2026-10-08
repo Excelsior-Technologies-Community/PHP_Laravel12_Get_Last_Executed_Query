@@ -4,257 +4,125 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Laravel Query Debug Methods</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <title>Laravel 12 Query Debugger & Optimizer Studio</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        body {
-            padding: 20px;
-            background-color: #f8f9fa;
-        }
-
-        .method-card {
-            margin-bottom: 20px;
-        }
-
-        .query-box {
-            background-color: #f8f9fa;
-            padding: 15px;
-            border-radius: 5px;
-            border-left: 4px solid #007bff;
-            font-family: monospace;
-            white-space: pre-wrap;
-            word-break: break-all;
-        }
+        body { background: #f0f4f8; font-family: 'Segoe UI', system-ui, sans-serif; }
+        .card { border-radius: 16px; border: none; box-shadow: 0 10px 30px rgba(0,0,0,0.05); }
+        .method-card { transition: transform 0.2s ease; }
+        .method-card:hover { transform: translateY(-3px); }
     </style>
 </head>
 
 <body>
-    <div class="container">
-        <div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="container py-4">
+        <!-- Header -->
+        <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
             <div>
-                <h1>Laravel 12 Query Debugger</h1>
-                <p class="lead mb-0">
-                    Debug • Analyze • Export SQL Queries
-                </p>
+                <h2 class="fw-bold text-primary m-0"><i class="fa-solid fa-database text-warning me-2"></i>Laravel 12 Query Debugger & EXPLAIN Studio</h2>
+                <p class="text-muted small m-0">Debug, Analyze, Profile, Benchmark & Export Database Queries</p>
             </div>
 
-            <div>
-                <a href="{{ route('debug.history') }}"
-                    class="btn btn-dark">
-                    Query History
+            <div class="d-flex flex-wrap gap-2">
+                <a href="{{ route('debug.sandbox') }}" class="btn btn-primary rounded-pill px-3">
+                    <i class="fa-solid fa-code me-1"></i> SQL Sandbox
                 </a>
+                <a href="{{ route('debug.n1') }}" class="btn btn-warning rounded-pill px-3">
+                    <i class="fa-solid fa-triangle-exclamation me-1"></i> N+1 Detector
+                </a>
+                <a href="{{ route('debug.benchmark') }}" class="btn btn-info rounded-pill px-3 text-white">
+                    <i class="fa-solid fa-stopwatch me-1"></i> Benchmark
+                </a>
+                <a href="{{ route('debug.history') }}" class="btn btn-dark rounded-pill px-3">
+                    <i class="fa-solid fa-history me-1"></i> History
+                </a>
+                <div class="btn-group">
+                    <button class="btn btn-outline-success dropdown-toggle rounded-pill px-3" data-bs-toggle="dropdown">
+                        <i class="fa-solid fa-file-export me-1"></i> Exporter Studio
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end shadow">
+                        <li><a href="{{ route('debug.history.export') }}" class="dropdown-item"><i class="fa-solid fa-file-csv text-success me-2"></i> Export CSV</a></li>
+                        <li><a href="{{ route('debug.history.export.pdf') }}" target="_blank" class="dropdown-item"><i class="fa-solid fa-file-pdf text-danger me-2"></i> Print / PDF Report</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a href="{{ route('debug.api.json') }}" target="_blank" class="dropdown-item"><i class="fa-solid fa-code text-info me-2"></i> Restful JSON API</a></li>
+                    </ul>
+                </div>
             </div>
         </div>
 
-        <div class="row mb-4">
-
+        <!-- Dashboard Stat Cards -->
+        <div class="row g-3 mb-4">
             <div class="col-md-3">
-                <div class="card text-white bg-primary">
-                    <div class="card-body text-center">
-                        <h2>{{ $totalQueries }}</h2>
-                        <h6 class="mt-2 mb-0">Total Queries</h6>
-                    </div>
+                <div class="card p-3 border-start border-4 border-primary text-center">
+                    <h3 class="fw-bold text-primary m-0">{{ $totalQueries }}</h3>
+                    <small class="text-muted fw-bold">TOTAL LOGGED QUERIES</small>
                 </div>
             </div>
-
             <div class="col-md-3">
-                <div class="card text-white bg-success">
-                    <div class="card-body text-center">
-                        <h2>{{ $fastQueries }}</h2>
-                        <h6 class="mt-2 mb-0">Fast Queries</h6>
-                    </div>
+                <div class="card p-3 border-start border-4 border-success text-center">
+                    <h3 class="fw-bold text-success m-0">{{ $fastQueries }}</h3>
+                    <small class="text-muted fw-bold">FAST QUERIES (≤20ms)</small>
                 </div>
             </div>
-
             <div class="col-md-3">
-                <div class="card text-dark bg-warning">
-                    <div class="card-body text-center">
-                        <h2>{{ $mediumQueries }}</h2>
-                        <h6 class="mt-2 mb-0">Medium Queries</h6>
-                    </div>
+                <div class="card p-3 border-start border-4 border-warning text-center">
+                    <h3 class="fw-bold text-warning m-0">{{ $mediumQueries }}</h3>
+                    <small class="text-muted fw-bold">MEDIUM QUERIES (21-80ms)</small>
                 </div>
             </div>
-
             <div class="col-md-3">
-                <div class="card text-white bg-danger">
-                    <div class="card-body text-center">
-                        <h2>{{ $slowQueries }}</h2>
-                        <h6 class="mt-2 mb-0">Slow Queries</h6>
-                    </div>
-                </div>
-            </div>
-
-        </div>
-
-        <div class="row">
-            <div class="col-md-6">
-                <div class="card method-card">
-                    <div class="card-header bg-primary text-white">
-                        <h5>Method 1: DB::getQueryLog()</h5>
-                    </div>
-                    <div class="card-body">
-                        <p>Requires enabling query log first with <code>DB::enableQueryLog()</code></p>
-                        <ul>
-                            <li>Returns array of all executed queries</li>
-                            <li>Get last query with <code>end($queries)</code></li>
-                            <li>Includes bindings and execution time</li>
-                        </ul>
-                        <a href="{{ route('debug.method1') }}" class="btn btn-primary">Try Method 1</a>
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-md-6">
-                <div class="card method-card">
-                    <div class="card-header bg-success text-white">
-                        <h5>Method 2: toSql() on Builder</h5>
-                    </div>
-                    <div class="card-body">
-                        <p>Get SQL without executing the query</p>
-                        <ul>
-                            <li>Use <code>$query->toSql()</code></li>
-                            <li>Shows SQL with placeholders (?)</li>
-                            <li>Use <code>$query->getBindings()</code> to get parameter values</li>
-                            <li>Replace bindings manually to generate the complete SQL</li>
-                        </ul>
-                        <a href="{{ route('debug.method2') }}" class="btn btn-success">
-                            Try Method 2
-                        </a>
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-md-6">
-                <div class="card method-card">
-                    <div class="card-header bg-info text-white">
-                        <h5>Method 3: DB::listen()</h5>
-                    </div>
-                    <div class="card-body">
-                        <p>Listen to all queries executed</p>
-                        <ul>
-                            <li>Global listener for all queries</li>
-                            <li>Can log to file or console</li>
-                            <li>Includes execution time</li>
-                        </ul>
-                        <a href="{{ route('debug.method3') }}" class="btn btn-info">Try Method 3</a>
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-md-6">
-                <div class="card method-card">
-                    <div class="card-header bg-warning text-dark">
-                        <h5>Method 4: Global Query Logging</h5>
-                    </div>
-                    <div class="card-body">
-                        <p>Track executed queries using Laravel Query Log</p>
-                        <ul>
-                            <li>Captures executed Eloquent queries</li>
-                            <li>Stores query history in the database</li>
-                            <li>Useful for debugging and query analysis</li>
-                        </ul>
-                        <a href="{{ route('debug.method4') }}" class="btn btn-warning">
-                            Try Method 4
-                        </a>
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-md-6">
-                <div class="card method-card">
-                    <div class="card-header bg-danger text-white">
-                        <h5>Method 5: Raw SQL Queries</h5>
-                    </div>
-                    <div class="card-body">
-                        <p>For raw SQL queries with DB facade</p>
-                        <ul>
-                            <li>Works with <code>DB::select()</code>, <code>DB::insert()</code>,
-                                <code>DB::update()</code>, and <code>DB::delete()</code>
-                            </li>
-                            <li>Requires query log enabled</li>
-                            <li>Same as Method 1 but for raw SQL</li>
-                        </ul>
-                        <a href="{{ route('debug.method5') }}" class="btn btn-danger">Try Method 5</a>
-                    </div>
+                <div class="card p-3 border-start border-4 border-danger text-center">
+                    <h3 class="fw-bold text-danger m-0">{{ $slowQueries }}</h3>
+                    <small class="text-muted fw-bold">SLOW QUERIES (>80ms)</small>
                 </div>
             </div>
         </div>
 
-        <div class="card mt-4">
-            <div class="card-header">
-                <h5>Important Notes</h5>
-            </div>
-            <div class="card-body">
-                <div class="alert alert-warning">
-                    <strong>Performance Warning:</strong> Enabling query log (<code>DB::enableQueryLog()</code>) can
-                    impact performance in production. Use only for debugging.
+        <!-- 5 Query Debugging Methods Grid -->
+        <div class="row g-4 mb-4">
+            <div class="col-md-6">
+                <div class="card method-card p-4">
+                    <h5 class="fw-bold text-primary"><i class="fa-solid fa-1 me-2"></i>Method 1: DB::getQueryLog()</h5>
+                    <p class="text-muted small">Requires enabling query log with <code>DB::enableQueryLog()</code> to capture executed queries and latency.</p>
+                    <a href="{{ route('debug.method1') }}" class="btn btn-outline-primary rounded-pill">Try Method 1</a>
                 </div>
-                <div class="alert alert-info">
-                    <strong>For Production Debugging:</strong> Use <code>DB::listen()</code> with conditional logging or
-                    a dedicated debugging package like Laravel Debugbar.
+            </div>
+
+            <div class="col-md-6">
+                <div class="card method-card p-4">
+                    <h5 class="fw-bold text-success"><i class="fa-solid fa-2 me-2"></i>Method 2: toSql() on Builder</h5>
+                    <p class="text-muted small">Inspect SQL string without executing query using <code>$query->toSql()</code> and bindings replacement.</p>
+                    <a href="{{ route('debug.method2') }}" class="btn btn-outline-success rounded-pill">Try Method 2</a>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <div class="card method-card p-4">
+                    <h5 class="fw-bold text-info"><i class="fa-solid fa-3 me-2"></i>Method 3: DB::listen()</h5>
+                    <p class="text-muted small">Global listener for all database query executions with real-time logging.</p>
+                    <a href="{{ route('debug.method3') }}" class="btn btn-outline-info rounded-pill">Try Method 3</a>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <div class="card method-card p-4">
+                    <h5 class="fw-bold text-warning"><i class="fa-solid fa-4 me-2"></i>Method 4: Global Query Logging</h5>
+                    <p class="text-muted small">Captures executed Eloquent queries globally and records audit trail into database.</p>
+                    <a href="{{ route('debug.method4') }}" class="btn btn-outline-warning rounded-pill">Try Method 4</a>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <div class="card method-card p-4">
+                    <h5 class="fw-bold text-danger"><i class="fa-solid fa-5 me-2"></i>Method 5: Raw SQL Queries</h5>
+                    <p class="text-muted small">Inspects raw SQL statements executed using <code>DB::select()</code> and <code>DB::statement()</code>.</p>
+                    <a href="{{ route('debug.method5') }}" class="btn btn-outline-danger rounded-pill">Try Method 5</a>
                 </div>
             </div>
         </div>
-
-        <div class="card mt-4">
-
-            <div class="card-header">
-                <h5>Extra Features</h5>
-            </div>
-
-            <div class="card-body">
-
-                <div class="d-flex gap-2 flex-wrap">
-
-                    <a href="{{ route('debug.history') }}"
-                        class="btn btn-primary">
-                        📜 View Query History
-                    </a>
-
-                    <a href="{{ route('debug.history.export') }}"
-                        class="btn btn-success">
-                        📥 Export CSV
-                    </a>
-
-                </div>
-
-            </div>
-
-        </div>
-
-        <div class="alert alert-secondary mt-4">
-
-            <h5>Performance Analyzer</h5>
-
-            <hr>
-
-            <div class="mb-2">
-                <span class="badge bg-success">
-                    Fast
-                </span>
-
-                Queries executed in ≤ 20 ms
-            </div>
-
-            <div class="mb-2">
-                <span class="badge bg-warning text-dark">
-                    Medium
-                </span>
-
-                Queries executed in 21–80 ms
-            </div>
-
-            <div>
-                <span class="badge bg-danger">
-                    Slow
-                </span>
-
-                Queries executed in more than 80 ms
-            </div>
-
-        </div>
-
     </div>
-</body>
 
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
 </html>

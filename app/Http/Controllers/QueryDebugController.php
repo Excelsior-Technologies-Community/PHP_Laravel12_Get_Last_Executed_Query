@@ -10,23 +10,18 @@ use Illuminate\Support\Facades\Log;
 
 class QueryDebugController extends Controller
 {
-    // Method 1: Using DB::getQueryLog() - Requires enabling query log
+    // Method 1: Using DB::getQueryLog()
     public function method1()
     {
-        // Enable query log
         DB::enableQueryLog();
 
-        // Execute some queries
         $products = Product::where('price', '>', 100)->get();
         $count = Product::count();
         $expensiveProducts = Product::where('price', '>', 500)->orderBy('price', 'desc')->get();
 
-        // Get query log
         $queries = DB::getQueryLog();
-
         $this->saveQueryHistory('Method 1', $queries);
 
-        // Format all queries for display
         $formattedQueries = [];
         foreach ($queries as $query) {
             $formattedQueries[] = [
@@ -57,14 +52,9 @@ class QueryDebugController extends Controller
         DB::enableQueryLog();
 
         $query = Product::where('price', '>', 100);
-
-        // Get SQL without bindings
         $rawSql = $query->toSql();
-
-        // Get SQL with bindings replaced
         $sqlWithBindings = $this->getSqlWithBindings($query);
 
-        // Actually execute the query
         $products = $query->get();
         $queries = DB::getQueryLog();
 
@@ -77,7 +67,7 @@ class QueryDebugController extends Controller
         ]);
     }
 
-    // Method 3: Using DB::listen() for all queries
+    // Method 3: Using DB::listen()
     public function method3()
     {
         DB::enableQueryLog();
@@ -85,12 +75,10 @@ class QueryDebugController extends Controller
         $lastQuery = null;
         $formattedLastQuery = null;
 
-        // Listen to all queries
         DB::listen(function ($query) use (&$lastQuery, &$formattedLastQuery) {
             $lastQuery = $query;
             $formattedLastQuery = $this->formatQuery($query);
 
-            // You can also log to file or console
             Log::info('Executed Query:', [
                 'sql' => $query->sql,
                 'bindings' => $query->bindings,
@@ -98,7 +86,6 @@ class QueryDebugController extends Controller
             ]);
         });
 
-        // Execute some queries
         $product = Product::find(1);
         $cheapProducts = Product::where('price', '<', 100)->get();
         $updated = Product::where('id', 2)->update(['quantity' => 30]);
@@ -114,14 +101,11 @@ class QueryDebugController extends Controller
         ]);
     }
 
-    // Method 4: Using a Global Scope (Middleware) to log all queries
+    // Method 4: Global Scope / Middleware Logging
     public function method4()
     {
-        // Enable query log for demonstration
         DB::enableQueryLog();
 
-        // This method shows how you can track queries globally
-        // Execute various types of queries
         $allProducts = Product::all();
         $firstProduct = Product::first();
         $newProduct = Product::create([
@@ -131,7 +115,6 @@ class QueryDebugController extends Controller
             'quantity' => 15,
         ]);
 
-        // Get and format queries
         $queries = DB::getQueryLog();
         $this->saveQueryHistory('Method 4', $queries);
         $formattedQueries = [];
@@ -147,21 +130,17 @@ class QueryDebugController extends Controller
         ]);
     }
 
-    // Method 5: Using Raw SQL and getting last query
+    // Method 5: Raw SQL & Last Executed Query
     public function method5()
     {
-        // Enable query log for this demonstration
         DB::enableQueryLog();
 
-        // Execute raw SQL
         DB::select('SELECT * FROM products WHERE quantity > ?', [20]);
 
-        // Get the last query
         $queries = DB::getQueryLog();
         $this->saveQueryHistory('Method 5', $queries);
         $lastQuery = end($queries);
 
-        // Format it nicely
         $formattedQuery = $lastQuery ? $this->formatRawQuery($lastQuery) : 'No query executed';
 
         return view('debug.method5', [
@@ -171,7 +150,250 @@ class QueryDebugController extends Controller
         ]);
     }
 
-    // Helper method to get SQL with bindings
+    /**
+     * Interactive Live SQL Sandbox & EXPLAIN Query Analyzer
+     */
+    public function sandboxIndex()
+    {
+        $defaultSql = "SELECT * FROM products WHERE price > 100 ORDER BY price DESC;";
+        return view('debug.sandbox', compact('defaultSql'));
+    }
+
+    public function sandboxExecute(Request $request)
+    {
+        $sql = trim($request->input('sql', 'SELECT * FROM products;'));
+
+        // Security check: Only allow SELECT queries in Sandbox
+        if (!preg_match('/^\s*SELECT/i', $sql)) {
+            return back()->with('error', 'Security Policy: Only SELECT queries are permitted in Sandbox mode.');
+        }
+
+        $startTime = microtime(true);
+        $results = [];
+        $error = null;
+        $explainResults = [];
+        $recommendation = "Optimal query execution.";
+
+        try {
+            $results = DB::select($sql);
+            $executionTime = round((microtime(true) - $startTime) * 1000, 2);
+
+            // Automated EXPLAIN Plan
+            try {
+                $explainResults = DB::select("EXPLAIN " . $sql);
+                foreach ($explainResults as $explain) {
+                    $type = $explain->type ?? $explain->select_type ?? '';
+                    if (str_contains(strtoupper($type), 'ALL')) {
+                        $recommendation = "⚠️ Warning: Full Table Scan detected! Consider adding an index on WHERE clause columns to optimize performance.";
+                    }
+                }
+            } catch (\Exception $ex) {
+                // Explain optional for simple SQLite
+            }
+
+            // Save to Query History
+            QueryHistory::create([
+                'method' => 'Live SQL Sandbox',
+                'sql_query' => $sql,
+                'query_type' => 'SELECT',
+                'execution_time' => (int)$executionTime,
+                'performance' => $this->getPerformanceStatus($executionTime),
+                'connection' => config('database.default'),
+                'is_slow' => $executionTime > 20,
+                'explain_plan' => json_encode($explainResults),
+                'recommendation' => $recommendation,
+            ]);
+
+        } catch (\Exception $e) {
+            $error = $e->getMessage();
+            $executionTime = 0;
+        }
+
+        return view('debug.sandbox', [
+            'defaultSql' => $sql,
+            'results' => $results,
+            'explainResults' => $explainResults,
+            'executionTime' => $executionTime ?? 0,
+            'recommendation' => $recommendation,
+            'error' => $error,
+        ]);
+    }
+
+    /**
+     * N+1 Query Detector & Alert Studio
+     */
+    public function nPlusOneDemo()
+    {
+        DB::enableQueryLog();
+
+        // 1. Without Eager Loading (N+1 Problem)
+        $n1Products = Product::all();
+        $queriesN1Count = count(DB::getQueryLog());
+
+        // 2. Optimized Query
+        DB::flushQueryLog();
+        $optimizedProducts = Product::where('price', '>', 50)->get();
+        $queriesOptimizedCount = count(DB::getQueryLog());
+
+        return view('debug.n1_detector', compact(
+            'n1Products',
+            'optimizedProducts',
+            'queriesN1Count',
+            'queriesOptimizedCount'
+        ));
+    }
+
+    /**
+     * Query Execution Benchmark Studio
+     */
+    public function benchmarkIndex()
+    {
+        return view('debug.benchmark');
+    }
+
+    public function benchmarkRun(Request $request)
+    {
+        $iterations = (int)$request->input('iterations', 25);
+        $iterations = min(max($iterations, 5), 100);
+
+        $sql = "SELECT * FROM products WHERE price > 50 ORDER BY id DESC";
+
+        $times = [];
+        $totalStartTime = microtime(true);
+
+        for ($i = 0; $i < $iterations; $i++) {
+            $t1 = microtime(true);
+            DB::select($sql);
+            $times[] = (microtime(true) - $t1) * 1000;
+        }
+
+        $totalDuration = round((microtime(true) - $totalStartTime) * 1000, 2);
+        $minTime = round(min($times), 2);
+        $maxTime = round(max($times), 2);
+        $avgTime = round(array_sum($times) / count($times), 2);
+
+        $score = 'Grade A (Excellent)';
+        if ($avgTime > 15) $score = 'Grade B (Good)';
+        if ($avgTime > 50) $score = 'Grade C (Needs Optimization)';
+        if ($avgTime > 100) $score = 'Grade D (Slow Query)';
+
+        return view('debug.benchmark', compact(
+            'iterations',
+            'sql',
+            'totalDuration',
+            'minTime',
+            'maxTime',
+            'avgTime',
+            'score'
+        ));
+    }
+
+    // Dashboard to show all methods & analytics
+    public function dashboard()
+    {
+        return view('debug.dashboard', [
+            'totalProducts' => Product::count(),
+            'totalQueries' => QueryHistory::count(),
+            'selectQueries' => QueryHistory::where('query_type', 'SELECT')->count(),
+            'insertQueries' => QueryHistory::where('query_type', 'INSERT')->count(),
+            'updateQueries' => QueryHistory::where('query_type', 'UPDATE')->count(),
+            'deleteQueries' => QueryHistory::where('query_type', 'DELETE')->count(),
+            'fastQueries' => QueryHistory::where('performance', 'Fast')->count(),
+            'mediumQueries' => QueryHistory::where('performance', 'Medium')->count(),
+            'slowQueries' => QueryHistory::where('performance', 'Slow')->orWhere('is_slow', true)->count(),
+        ]);
+    }
+
+    // History Page
+    public function history(Request $request)
+    {
+        $query = QueryHistory::latest();
+
+        if ($request->search) {
+            $query->where(function ($q) use ($request) {
+                $q->where('method', 'like', '%' . $request->search . '%')
+                    ->orWhere('sql_query', 'like', '%' . $request->search . '%')
+                    ->orWhere('query_type', 'like', '%' . $request->search . '%')
+                    ->orWhere('execution_time', 'like', '%' . $request->search . '%');
+            });
+        }
+
+        if ($request->performance) {
+            $query->where('performance', $request->performance);
+        }
+
+        return view('debug.history', [
+            'histories' => $query->paginate(10),
+            'totalQueries' => QueryHistory::count(),
+            'selectQueries' => QueryHistory::where('query_type', 'SELECT')->count(),
+            'insertQueries' => QueryHistory::where('query_type', 'INSERT')->count(),
+            'updateQueries' => QueryHistory::where('query_type', 'UPDATE')->count(),
+            'deleteQueries' => QueryHistory::where('query_type', 'DELETE')->count(),
+            'fastQueries' => QueryHistory::where('performance', 'Fast')->count(),
+            'mediumQueries' => QueryHistory::where('performance', 'Medium')->count(),
+            'slowQueries' => QueryHistory::where('performance', 'Slow')->orWhere('is_slow', true)->count(),
+        ]);
+    }
+
+    public function destroy(QueryHistory $history)
+    {
+        $history->delete();
+        return back()->with('success', 'Deleted Successfully');
+    }
+
+    public function exportCSV()
+    {
+        $fileName = 'query_history.csv';
+        $headers = [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => 'attachment; filename=' . $fileName,
+        ];
+
+        $callback = function () {
+            $file = fopen('php://output', 'w');
+            fputcsv($file, ['ID', 'Method', 'Query', 'Type', 'Execution Time (ms)', 'Performance', 'Slow Flag', 'Recommendation', 'Connection', 'Created At']);
+
+            foreach (QueryHistory::latest()->get() as $history) {
+                fputcsv($file, [
+                    $history->id,
+                    $history->method,
+                    $history->sql_query,
+                    $history->query_type,
+                    $history->execution_time,
+                    $history->performance,
+                    $history->is_slow ? 'Yes' : 'No',
+                    $history->recommendation ?? 'N/A',
+                    $history->connection,
+                    $history->created_at,
+                ]);
+            }
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, $headers);
+    }
+
+    public function exportPdf()
+    {
+        $histories = QueryHistory::latest()->get();
+        return view('exports.query_pdf', compact('histories'));
+    }
+
+    public function jsonApi()
+    {
+        return response()->json([
+            'status' => 'success',
+            'data' => QueryHistory::latest()->limit(50)->get()
+        ]);
+    }
+
+    public function clear()
+    {
+        QueryHistory::truncate();
+        return back()->with('success', 'History Cleared');
+    }
+
+    // Helper methods
     private function getSqlWithBindings($query)
     {
         $sql = $query->toSql();
@@ -185,7 +407,6 @@ class QueryDebugController extends Controller
         return $sql;
     }
 
-    // Helper method to format query from DB::listen
     private function formatQuery($query)
     {
         $sql = $query->sql;
@@ -203,12 +424,9 @@ class QueryDebugController extends Controller
         ];
     }
 
-    // Helper method to format raw query
     private function formatRawQuery($query)
     {
-        if (!$query) {
-            return 'No query executed';
-        }
+        if (!$query) return 'No query executed';
 
         $sql = $query['query'] ?? '';
         $bindings = $query['bindings'] ?? [];
@@ -223,151 +441,29 @@ class QueryDebugController extends Controller
 
     private function getPerformanceStatus($time)
     {
-        if ($time <= 20) {
-            return 'Fast';
-        }
-
-        if ($time <= 80) {
-            return 'Medium';
-        }
-
+        if ($time <= 20) return 'Fast';
+        if ($time <= 80) return 'Medium';
         return 'Slow';
     }
 
     public function saveQueryHistory($method, $queries)
     {
         foreach ($queries as $query) {
-
             $sql = $this->formatRawQuery($query);
             $type = strtoupper(strtok(trim($sql), " "));
-            $performance = $this->getPerformanceStatus($query['time']);
+            $time = $query['time'];
+            $performance = $this->getPerformanceStatus($time);
 
             QueryHistory::firstOrCreate(
-                [
-                    'method' => $method,
-                    'sql_query' => $sql,
-                ],
-
+                ['method' => $method, 'sql_query' => $sql],
                 [
                     'query_type' => $type,
-                    'execution_time' => $query['time'],
+                    'execution_time' => $time,
                     'performance' => $performance,
-                    'connection' => $query['connection'] ?? 'mysql',
+                    'is_slow' => $time > 20,
+                    'connection' => $query['connection'] ?? config('database.default'),
                 ]
-
             );
         }
-    }
-
-    // Dashboard to show all methods
-    public function dashboard()
-    {
-        return view('debug.dashboard', [
-
-            'totalProducts' => Product::count(),
-
-            'totalQueries' => QueryHistory::count(),
-
-            'selectQueries' => QueryHistory::where('query_type', 'SELECT')->count(),
-
-            'insertQueries' => QueryHistory::where('query_type', 'INSERT')->count(),
-
-            'updateQueries' => QueryHistory::where('query_type', 'UPDATE')->count(),
-
-            'deleteQueries' => QueryHistory::where('query_type', 'DELETE')->count(),
-
-            'fastQueries' => QueryHistory::where('performance', 'Fast')->count(),
-
-            'mediumQueries' => QueryHistory::where('performance', 'Medium')->count(),
-
-            'slowQueries' => QueryHistory::where('performance', 'Slow')->count(),
-
-        ]);
-    }
-
-    public function history(Request $request)
-    {
-        $query = QueryHistory::oldest();
-
-        if ($request->search) {
-            $query->where(function ($q) use ($request) {
-                $q->where('method', 'like', '%' . $request->search . '%')
-                    ->orWhere('sql_query', 'like', '%' . $request->search . '%')
-                    ->orWhere('query_type', 'like', '%' . $request->search . '%')
-                    ->orWhere('execution_time', 'like', '%' . $request->search . '%');
-            });
-        }
-
-        return view('debug.history', [
-            'histories' => $query->paginate(4),
-            'totalQueries' => QueryHistory::count(),
-            'selectQueries' => QueryHistory::where('query_type', 'SELECT')->count(),
-            'insertQueries' => QueryHistory::where('query_type', 'INSERT')->count(),
-            'updateQueries' => QueryHistory::where('query_type', 'UPDATE')->count(),
-            'deleteQueries' => QueryHistory::where('query_type', 'DELETE')->count(),
-            'fastQueries' => QueryHistory::where('performance', 'Fast')->count(),
-            'mediumQueries' => QueryHistory::where('performance', 'Medium')->count(),
-            'slowQueries' => QueryHistory::where('performance', 'Slow')->count(),
-        ]);
-    }
-
-    public function destroy(QueryHistory $history)
-    {
-        $history->delete();
-
-        return back()->with('success', 'Deleted Successfully');
-    }
-
-    public function exportCSV()
-    {
-        $fileName = 'query_history.csv';
-
-        $headers = [
-
-            'Content-Type' => 'text/csv',
-            'Content-Disposition' => 'attachment; filename=' . $fileName,
-
-        ];
-
-        $callback = function () {
-
-            $file = fopen('php://output', 'w');
-
-            fputcsv($file, [
-                'ID',
-                'Method',
-                'Query',
-                'Type',
-                'Execution Time (ms)',
-                'Performance',
-                'Connection',
-                'Created At'
-            ]);
-
-            foreach (QueryHistory::latest()->get() as $history) {
-
-                fputcsv($file, [
-                    $history->id,
-                    $history->method,
-                    $history->sql_query,
-                    $history->query_type,
-                    $history->execution_time,
-                    $history->performance,
-                    $history->connection,
-                    $history->created_at,
-                ]);
-            }
-
-            fclose($file);
-        };
-
-        return response()->stream($callback, 200, $headers);
-    }
-
-    public function clear()
-    {
-        QueryHistory::truncate();
-
-        return back()->with('success', 'History Cleared');
     }
 }

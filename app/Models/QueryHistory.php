@@ -16,5 +16,15 @@ class QueryHistory extends Model
         'execution_time',
         'performance',
         'connection',
+        'is_slow',
+        'is_n_plus_one',
+        'explain_plan',
+        'recommendation',
+    ];
+
+    protected $casts = [
+        'is_slow' => 'boolean',
+        'is_n_plus_one' => 'boolean',
+        'execution_time' => 'integer',
     ];
 }
